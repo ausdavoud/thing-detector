@@ -1,0 +1,113 @@
+<!-- index.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Webcam → YOLO demo</title>
+  <style>
+    #video, #overlay {
+      position: absolute;
+      left: 0; top: 0;
+      width: 640px; height: 480px;
+    }
+    #container { position: relative; width: 640px; height: 480px; }
+  </style>
+</head>
+<body>
+  <h3>Webcam → YOLO (WebSocket)</h3>
+  <div id="container">
+    <video id="video" autoplay playsinline></video>
+    <canvas id="overlay"></canvas>
+  </div>
+  <script>
+  // app.js inline for simplicity
+  (async () => {
+    const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/yolo/';
+    const socket = new WebSocket(wsUrl);
+
+    const video = document.getElementById('video');
+    const overlay = document.getElementById('overlay');
+    const octx = overlay.getContext('2d');
+
+    // set fixed size
+    const WIDTH = 640, HEIGHT = 480;
+    overlay.width = WIDTH; overlay.height = HEIGHT;
+    video.width = WIDTH; video.height = HEIGHT;
+
+    // get webcam
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: WIDTH, height: HEIGHT }, audio: false });
+      video.srcObject = stream;
+    } catch (e) {
+      alert('Could not access webcam: ' + e);
+      return;
+    }
+
+    // canvas to capture frames
+    const captureCanvas = document.createElement('canvas');
+    captureCanvas.width = WIDTH;
+    captureCanvas.height = HEIGHT;
+    const captureCtx = captureCanvas.getContext('2d');
+
+    // draw function for predictions
+    function drawDetections(dets) {
+      // dets: [{xmin, ymin, xmax, ymax, conf, cls}, ...]
+      octx.clearRect(0, 0, WIDTH, HEIGHT);
+      octx.lineWidth = 2;
+      octx.font = '16px Arial';
+      dets.forEach(d => {
+        octx.strokeStyle = 'red';
+        octx.fillStyle = 'red';
+        octx.beginPath();
+        octx.rect(d.xmin, d.ymin, d.xmax - d.xmin, d.ymax - d.ymin);
+        octx.stroke();
+        const label = `${d.cls} ${ (d.conf*100).toFixed(0) }%`;
+        octx.fillText(label, d.xmin + 4, Math.max(d.ymin + 16, 16));
+      });
+    }
+
+    // handle incoming messages
+    socket.addEventListener('message', ev => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'detections') {
+          drawDetections(msg.detections);
+        } else if (msg.type === 'info') {
+          console.log('info', msg);
+        }
+      } catch (err) {
+        console.error('Invalid server message', err);
+      }
+    });
+
+    // capture+send loop (throttle to ~5 FPS)
+    let sending = false;
+    const FPS = 5;
+    const INTERVAL = 1000 / FPS;
+
+    async function sendFrame() {
+      if (socket.readyState !== WebSocket.OPEN) return;
+      if (sending) return;
+      sending = true;
+      captureCtx.drawImage(video, 0, 0, WIDTH, HEIGHT);
+      // convert to JPEG blob (quality 0.6 reduces bandwidth)
+      captureCanvas.toBlob(async blob => {
+        if (!blob) { sending = false; return; }
+        // send binary frame as ArrayBuffer with a short header, or send raw bytes directly
+        const arr = await blob.arrayBuffer();
+        // We'll send a binary message; the backend will treat it as image bytes
+        socket.send(arr);
+        sending = false;
+      }, 'image/jpeg', 0.6);
+    }
+
+    // interval timer
+    setInterval(sendFrame, INTERVAL);
+
+    socket.addEventListener('open', () => console.log('WebSocket open'));
+    socket.addEventListener('close', () => console.log('WebSocket closed'));
+    socket.addEventListener('error', e => console.error('WS error', e));
+  })();
+  </script>
+</body>
+</html>

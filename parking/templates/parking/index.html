@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parking Lot</title>
+  </head>
+  <body>
+    <div id="container">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    What chatroom would you like to enter? <br />
+    <input id="room-name-input" type="text" size="100" /><br />
+    <input id="room-name-submit" type="button" value="Enter" />
+
+    <script>
+      document.querySelector("#room-name-input").focus();
+      document.querySelector("#room-name-input").onkeyup = function (e) {
+        if (e.key === "Enter") {
+          // enter, return
+          document.querySelector("#room-name-submit").click();
+        }
+      };
+
+      document.querySelector("#room-name-submit").onclick = function (e) {
+        var roomName = document.querySelector("#room-name-input").value;
+        window.location.pathname = "/chat/" + roomName + "/";
+      };
+    </script>
+  </body>
+</html>
