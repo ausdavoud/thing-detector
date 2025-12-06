@@ -70,7 +70,7 @@ export default function YOLOWebcam({ onDetections, onSnapshot }) {
   }
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", width: "100%"}}>
       <video ref={videoRef} style={{ width: "100%" }} />
       <canvas
         ref={canvasRef}
