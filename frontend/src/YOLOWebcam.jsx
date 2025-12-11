@@ -1,30 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
-export default function YOLOWebcam({ onDetections, onSnapshot }) {
+export default function YOLOWebcam({ onDetections }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  let ws = null;
-
-  useEffect(() => {
-    ws = new WebSocket("ws://127.0.0.1:8000/ws/yolo/");
-    ws.binaryType = "arraybuffer";
-
-    ws.onmessage = (ev) => {
-      const data = JSON.parse(ev.data);
-      if (data.type === "detections") {
-        const dets = data.detections || [];
-        onDetections(dets);
-        drawDetections(dets);
-        if (dets.length > 0) saveSnapshot();
-      }
-    };
-
-    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play();
-      setInterval(() => sendFrame(ws), 150);
-    });
-  }, []);
 
   function sendFrame(ws) {
     if (!videoRef.current || ws.readyState !== WebSocket.OPEN) return;
@@ -59,18 +37,28 @@ export default function YOLOWebcam({ onDetections, onSnapshot }) {
     });
   }
 
-  function saveSnapshot() {
-    const v = videoRef.current;
-    const c = document.createElement("canvas");
-    c.width = v.videoWidth;
-    c.height = v.videoHeight;
-    const ctx = c.getContext("2d");
-    ctx.drawImage(v, 0, 0);
-    onSnapshot(c.toDataURL("image/jpeg"));
-  }
+  useEffect(() => {
+    const ws = new WebSocket("ws://127.0.0.1:8000/ws/yolo/");
+    ws.binaryType = "arraybuffer";
+
+    ws.onmessage = (ev) => {
+      const data = JSON.parse(ev.data);
+      if (data.type === "detections") {
+        const dets = data.detections || [];
+        onDetections(dets);
+        drawDetections(dets);
+      }
+    };
+
+    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play();
+      setInterval(() => sendFrame(ws), 150);
+    });
+  }, [onDetections]);
 
   return (
-    <div style={{ position: "relative", width: "100%"}}>
+    <div style={{ position: "relative", width: "100%" }}>
       <video ref={videoRef} style={{ width: "100%" }} />
       <canvas
         ref={canvasRef}
