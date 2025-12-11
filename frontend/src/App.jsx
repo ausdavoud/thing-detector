@@ -1,12 +1,10 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import YOLOWebcam from "./YOLOWebcam";
 import "./App.css";
 
 export default function App() {
   const [detections, setDetections] = useState([]);
-  const [setSnapshots] = useState([]);
 
-  // Count total and count per object class
   const classCounts = useMemo(() => {
     const c = {};
     detections.forEach((d) => {
@@ -17,15 +15,10 @@ export default function App() {
 
   return (
     <div className="meet-container">
-      {/* LEFT SIDE — Video */}
       <div className="video-section">
-        <YOLOWebcam
-          onDetections={setDetections}
-          onSnapshot={(img) => setSnapshots((prev) => [img, ...prev])}
-        />
+        <YOLOWebcam onDetections={setDetections}/>
       </div>
 
-      {/* RIGHT SIDE — Object List*/}
       <div className="sidebar">
         <h2>Detected Objects</h2>
 
@@ -42,7 +35,6 @@ export default function App() {
           ))}
         </div>
 
-        {/* Bottom total */}
         <div className="total-footer">
           Total Objects: {detections.length}
         </div>
