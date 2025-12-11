@@ -4,7 +4,7 @@ import "./App.css";
 
 export default function App() {
   const [detections, setDetections] = useState([]);
-  const [snapshots, setSnapshots] = useState([]);
+  const [setSnapshots] = useState([]);
 
   // Count total and count per object class
   const classCounts = useMemo(() => {
@@ -25,7 +25,7 @@ export default function App() {
         />
       </div>
 
-      {/* RIGHT SIDE — Object List (Like Google Meet Participants) */}
+      {/* RIGHT SIDE — Object List*/}
       <div className="sidebar">
         <h2>Detected Objects</h2>
 
@@ -42,7 +42,7 @@ export default function App() {
           ))}
         </div>
 
-        {/* Bottom total like Google Meet person count */}
+        {/* Bottom total */}
         <div className="total-footer">
           Total Objects: {detections.length}
         </div>
