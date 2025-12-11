@@ -22,9 +22,16 @@
     background: #141414;
     border-left: 1px solid #242424;
     padding: 20px;
-    display: flex;
     flex-direction: column;
+    display: none;
 }
+
+@media (min-width: 920px) {
+    .sidebar {
+        display: flex;
+    }
+}
+
   
 .sidebar h2 {
     font-size: 20px;
