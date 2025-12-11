@@ -1,1 +1,13 @@
 *.sqlite3
+.env
+.env.local
+.venv
+__pycache__/
+*.py[cod]
+*$py.class
+.DS_Store
+.vscode/
+.idea/
+*.egg-info/
+dist/
+build/

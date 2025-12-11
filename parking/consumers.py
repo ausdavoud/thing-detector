@@ -3,8 +3,7 @@ import json
 
 import cv2
 import numpy as np
-from asgiref.sync import async_to_sync
-from channels.generic.websocket import AsyncWebsocketConsumer, WebsocketConsumer
+from channels.generic.websocket import AsyncWebsocketConsumer
 from ultralytics import YOLO  # if using ultralytics YOLOv8
 
 # Load model once (global). Consider loading on startup in production.
@@ -53,7 +52,7 @@ class YOLOConsumer(AsyncWebsocketConsumer):
         # Run YOLO inference
         # ultralytics returns results object; we'll parse it
         results = MODEL.predict(
-            source=img_rgb, conf=0.35, device='cpu', verbose=False
+            source=img_rgb, conf=0.35, device="cpu", verbose=False
         )  # device=0 for GPU, or 'cpu'
         # results is a list; results[0] contains boxes, scores, classes
         res0 = results[0]
@@ -94,39 +93,3 @@ class YOLOConsumer(AsyncWebsocketConsumer):
     async def send_json(self, obj):
         # helper to send JSON messages
         await self.send(text_data=json.dumps(obj))
-
-
-class ChatConsumer(WebsocketConsumer):
-    def connect(self):
-        self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-        self.room_group_name = f"chat_{self.room_name}"
-
-        # Join room group
-        async_to_sync(self.channel_layer.group_add)(
-            self.room_group_name, self.channel_name
-        )
-
-        self.accept()
-
-    def disconnect(self, close_code):
-        # Leave room group
-        async_to_sync(self.channel_layer.group_discard)(
-            self.room_group_name, self.channel_name
-        )
-
-    # Receive message from WebSocket
-    def receive(self, text_data):
-        text_data_json = json.loads(text_data)
-        message = text_data_json["message"]
-
-        # Send message to room group
-        async_to_sync(self.channel_layer.group_send)(
-            self.room_group_name, {"type": "chat.message", "message": message}
-        )
-
-    # Receive message from room group
-    def chat_message(self, event):
-        message = event["message"]
-
-        # Send message to WebSocket
-        self.send(text_data=json.dumps({"message": message}))
