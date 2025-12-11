@@ -38,7 +38,10 @@ export default function YOLOWebcam({ onDetections }) {
   }
 
   useEffect(() => {
-    const ws = new WebSocket("ws://127.0.0.1:8000/ws/yolo/");
+    const wsScheme = import.meta.env.VITE_WS_SCHEME || "wss";
+    const wsHost = import.meta.env.VITE_WS_HOST || "localhost:8000";
+    const wsUrl = `${wsScheme}://${wsHost}/ws/yolo/`;
+    const ws = new WebSocket(wsUrl)
     ws.binaryType = "arraybuffer";
 
     ws.onmessage = (ev) => {
