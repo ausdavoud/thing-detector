@@ -192,3 +192,5 @@ This allows you to expose your local development server securely over HTTPS with
 - **Frontend**: React, Vite, Chakra UI
 - **Real-time Communication**: WebSockets
 - **Object Detection**: YOLO (Ultralytics)
+
+- author: elham-cheraghi
