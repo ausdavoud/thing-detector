@@ -7,10 +7,9 @@ Frames stream over a WebSocket to a Django Channels backend, and the detections 
 
 <br>
 
-<img alt="The Thing Detector interface: a street scene with red boxes around a bus, a pedestrian, a handbag, cars and traffic lights, next to a sidebar counting each class" src="docs/assets/hero.jpg">
+<img alt="The Thing Detector interface: a classroom frame with red boxes around three people, a projector screen labelled tv, two chairs and a phone, next to a sidebar counting each class" src="docs/assets/hero.jpg">
 
-<sub>Illustration: a street photo stands in for the webcam feed. The boxes are placed by hand and drawn with the app's own canvas code.<br>
-Photo by Han Zheng, <a href="https://commons.wikimedia.org/wiki/File:SEPTA_Route_9_-_NFI_DE41LF_-_Market_St._@_22nd_St.jpg">CC BY-SA 2.0</a>, via Wikimedia Commons.</sub>
+<sub>A frame from the app in a classroom.</sub>
 
 </div>
 
