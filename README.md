@@ -1,196 +1,119 @@
-# Parking Lot YOLO - Real-time Object Detection
+<div align="center">
 
-A real-time object detection system using YOLOv8 with Django, Channels, and React.
+# Thing Detector
 
-## Prerequisites
+Point a webcam at the world and watch YOLOv8 name what it sees, live in the browser.<br>
+Frames stream over a WebSocket to a Django Channels backend, and the detections come back as JSON.
 
-### Install `uv` (Python Package Manager)
+<br>
 
-`uv` is a fast Python package installer. Install it from:
-- [GitHub - astral-sh/uv](https://github.com/astral-sh/uv)
-- Or use: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+<img alt="The Thing Detector interface: a street scene with red boxes around a bus, a pedestrian, a handbag, cars and traffic lights, next to a sidebar counting each class" src="docs/assets/hero.jpg">
 
-### Install Redis
+<sub>Illustration: a street photo stands in for the webcam feed. The boxes are placed by hand and drawn with the app's own canvas code.<br>
+Photo by Han Zheng, <a href="https://commons.wikimedia.org/wiki/File:SEPTA_Route_9_-_NFI_DE41LF_-_Market_St._@_22nd_St.jpg">CC BY-SA 2.0</a>, via Wikimedia Commons.</sub>
 
-Redis is required for Django Channels to handle WebSocket connections.
+</div>
 
-#### macOS
+## How it works
+
+<sub>The animations come from the slides we presented the project with.</sub>
+
+### 1. The browser streams frames
+
+<img alt="Animation: a webcam frame moves from the video element to the socket inside the frontend" src="docs/assets/frontend.webp">
+
+The React app reads the webcam, draws the current frame to an off-screen canvas, encodes it as JPEG and sends the raw bytes over a WebSocket every 150 ms.
+
+### 2. Django Channels hands each frame to YOLO
+
+<img alt="Animation: inside the backend, a frame climbs from a socket through Django Channels and Django to YOLO, and the detected rectangles travel back down" src="docs/assets/backend.webp">
+
+`YOLOConsumer` decodes the JPEG with OpenCV and runs YOLOv8n on it (confidence 0.35, on the CPU). Inference runs in a thread pool, so a slow frame doesn't hold up the event loop or the other connections. The model is loaded once, when the server starts.
+
+### 3. The detections come back and get drawn
+
+<img alt="Animation: the full round trip, from the frontend over WebSocket to the backend and back to the canvas" src="docs/assets/round-trip.webp">
+
+Each reply is a list of boxes in the pixel coordinates of the frame that was sent:
+
+```json
+{
+  "type": "detections",
+  "detections": [
+    { "cls": "bus", "conf": 0.93, "xmin": 102.5, "ymin": 122.5, "xmax": 597.0, "ymax": 375.0 }
+  ]
+}
+```
+
+The frontend draws a box and label for each one on a canvas layered over the live video, and the sidebar counts them by class.
+
+## Run it locally
+
+You'll need Python 3.13 with [uv](https://github.com/astral-sh/uv), Redis, and Node.js.
+
+**1. Redis**, which Django Channels uses as its channel layer:
+
 ```bash
-# Install via Homebrew
-brew install redis
-
-# Start Redis on default port 6379
 redis-server
-
-# Or start on a custom port (e.g., 6380)
-redis-server --port 6380
 ```
 
-#### Linux (Ubuntu/Debian)
-```bash
-# Install
-sudo apt-get install redis-server
+or `docker run -d -p 6379:6379 redis`.
 
-# Start
-redis-server
-
-# Or start on a custom port
-redis-server --port 6380
-```
-
-#### Docker
-```bash
-# Run Redis in a container on port 6379
-docker run -d -p 6379:6379 redis:latest
-
-# Or on a custom port
-docker run -d -p 6380:6379 redis:latest
-```
-
-See [Redis Documentation](https://redis.io/documentation) for more details.
-
-## Backend Setup
-
-### 1. Configure Virtual Environment
+**2. Backend** on port 8000:
 
 ```bash
-# Create a virtual environment
-uv venv
-
-# Activate the virtual environment
-source .venv/bin/activate  # On macOS/Linux
-# or
-.venv\Scripts\activate  # On Windows
+uv sync
+cp .env.example .env    # set SECRET_KEY to any random string
+uv run python manage.py migrate
+uv run python manage.py runserver
 ```
 
-### 2. Install Backend Dependencies
-
-```bash
-# Using uv
-uv pip install -r pyproject.toml
-
-# Or using pip
-pip install -e .
-```
-
-### 3. Configure Environment Variables
-
-Create a `.env` file in the project root with the following variables:
-
-```bash
-# Django Settings
-SECRET_KEY=your-secret-key-here
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-
-# Redis Configuration (default: localhost on port 6379)
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-
-# WebSocket Configuration (for development)
-WS_SCHEME=ws
-WS_HOST=localhost:8000
-```
-
-You can copy `.env.example` if provided, or use the `.env.local` format for local overrides.
-
-### 4. Run Django Server
-
-```bash
-# Apply migrations (first time)
-python manage.py migrate
-
-# Start the Django development server
-python manage.py runserver
-# Or specify a custom port
-python manage.py runserver 8000
-```
-
-The backend will be available at `http://localhost:8000`.
-
-## Frontend Setup
-
-### 1. Install Node Dependencies
-
-Navigate to the frontend directory and install dependencies:
+**3. Frontend** on port 5173:
 
 ```bash
 cd frontend
-
-# Install dependencies
+cp .env.example .env.local
 npm install
-```
-
-### 2. Configure Environment Variables
-
-Create a `.env.local` file in the `frontend/` directory:
-
-```bash
-# WebSocket Configuration
-VITE_WS_SCHEME=ws
-VITE_WS_HOST=localhost:8000
-```
-
-For production, use:
-```bash
-VITE_WS_SCHEME=wss
-VITE_WS_HOST=yourdomain.com
-```
-
-Copy `.env.example` for a template.
-
-### 3. Run Frontend Development Server
-
-```bash
-# From the frontend directory
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`
+Open http://localhost:5173 and allow camera access.
 
-## Production Deployment
+Django also serves a single-page fallback at http://localhost:8000/parking/webcam/. It streams at 5 fps and shows confidence next to each label.
 
-For deploying over a network or using tunnels, see:
-- [Cloudflare Tunnel Setup Guide](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/create-remote-tunnel/#2b-connect-a-network)
+## Configuration
 
-This allows you to expose your local development server securely over HTTPS without opening ports.
+| Variable | Where | Default | |
+| :-- | :-- | :-- | :-- |
+| `SECRET_KEY` | `.env` | | Django secret key |
+| `DEBUG` | `.env` | `False` | `.env.example` turns it on for development |
+| `ALLOWED_HOSTS` | `.env` | `localhost,127.0.0.1` | Also used to check WebSocket origins |
+| `REDIS_HOST`, `REDIS_PORT` | `.env` | `127.0.0.1`, `6379` | |
+| `VITE_WS_SCHEME` | `frontend/.env.local` | `wss` | Use `ws` locally |
+| `VITE_WS_HOST` | `frontend/.env.local` | `localhost:8000` | Where the backend's `/ws/yolo/` endpoint lives |
 
-## Environment Variables Reference
-
-### Backend (.env)
-- `SECRET_KEY`: Django secret key (generate a new one for production)
-- `DEBUG`: Set to `False` in production
-- `ALLOWED_HOSTS`: Comma-separated list of allowed hosts
-- `REDIS_HOST`: Redis server host (default: `127.0.0.1`)
-- `REDIS_PORT`: Redis server port (default: `6379`)
-- `WS_SCHEME`: WebSocket scheme (`ws` for development, `wss` for production)
-- `WS_HOST`: WebSocket host (e.g., `localhost:8000` or `yoloback.example.com`)
-
-### Frontend (.env.local)
-- `VITE_WS_SCHEME`: WebSocket scheme (`ws` for development, `wss` for production)
-- `VITE_WS_HOST`: WebSocket host (e.g., `localhost:8000` or `yoloback.example.com`)
+To reach it from other devices, serve both apps over HTTPS (browsers only allow webcam access on secure origins) and switch the WebSocket scheme to `wss`. A [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/) does both without opening ports.
 
 ## Troubleshooting
 
-### Redis Connection Error
-- Ensure Redis is running: `redis-cli ping` should return `PONG`
-- Check `REDIS_HOST` and `REDIS_PORT` in `.env`
+- **Redis connection error.** `redis-cli ping` should answer `PONG`. Check `REDIS_HOST` and `REDIS_PORT` in `.env`.
+- **The WebSocket won't connect.** Make sure the backend is running and that `VITE_WS_SCHEME` and `VITE_WS_HOST` point at it.
+- **Port already in use.** Run the backend on another port (`runserver 8001`) and update `VITE_WS_HOST` to match.
 
-### WebSocket Connection Error
-- Verify backend is running
-- Check `VITE_WS_SCHEME` and `VITE_WS_HOST` in frontend `.env.local`
-- Ensure both backend and frontend are properly configured for the same host
+## Project layout
 
-### Port Already in Use
-- Change the port when running Django: `python manage.py runserver 8001`
-- Change Redis port: `redis-server --port 6380` and update `.env`
-- Update `.env` files accordingly
+```text
+config/       Django settings and ASGI routing for HTTP and WebSocket
+parking/      YOLOConsumer (frame in, detections out) and the /parking/webcam/ page
+frontend/     React + Vite app: webcam capture, canvas overlay, detections sidebar
+yolov8n.pt    YOLOv8 nano weights
+docs/         README images
+```
 
-## Technologies
+## Team
 
-- **Backend**: Django, Django Channels, Redis, YOLOv8
-- **Frontend**: React, Vite, Chakra UI
-- **Real-time Communication**: WebSockets
-- **Object Detection**: YOLO (Ultralytics)
+Made by [Davoud Nosrati](https://github.com/ausdavoud), [Elham Cheraghi](https://github.com/elham-cheraghi), [Mohammad Mallaee](https://github.com/mohammad-mallaee) and Ilia.
 
-- author: elham-cheraghi
+## License
+
+[MIT](LICENSE)
